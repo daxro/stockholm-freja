@@ -1,4 +1,5 @@
 import json
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +19,7 @@ FREJA_URL = (
     "https://login003.stockholm.se/NECSadcfreja/authenticate/NECSadcfreja"
     "?TYPE=33554433&REALMOID=06-abc&TARGET=-SM-https%3a%2f%2fexample.com"
 )
-PERSONNUMMER = "198703274954"
+PERSONNUMMER = "000000000000"
 
 
 def _response(text="APPROVED", status_code=200):
@@ -52,7 +53,7 @@ def test_init_request_strips_query_and_posts_personnummer_with_ajax_headers():
 
     assert session.post.call_args.args[0] == (
         "https://login003.stockholm.se/NECSadcfreja/authenticate/NECSadcfreja"
-        "?action=init&userInput=198703274954"
+        "?action=init&userInput=000000000000"
     )
     assert session.post.call_args.kwargs["allow_redirects"] is False
     assert session.post.call_args.kwargs["timeout"] == 30
@@ -91,6 +92,63 @@ def test_on_started_runs_after_init_before_polling():
     )
 
     assert events == [(1, 0)]
+
+
+def test_parallel_logins_keep_sessions_and_urls_independent():
+    started = threading.Barrier(2)
+
+    class FakeSession:
+        def __init__(self):
+            self.calls = []
+            self.poll_count = 0
+
+        def post(self, url, **kwargs):
+            self.calls.append(("post", url, kwargs))
+            started.wait(timeout=1)
+            return _response("")
+
+        def get(self, url, **kwargs):
+            self.poll_count += 1
+            self.calls.append(("get", url, kwargs))
+            status = "APPROVED" if self.poll_count > 1 else "STARTED"
+            return _response(json.dumps({"status": status}))
+
+    sessions = {"tempus": FakeSession(), "infomentor": FakeSession()}
+    starts = []
+    errors = []
+
+    def run(name):
+        try:
+            freja_login(
+                sessions[name],
+                f"https://login001.stockholm.se/NECSadc/freja/{name}?relay={name}",
+                PERSONNUMMER,
+                poll_interval=0,
+                on_started=lambda: starts.append(name),
+            )
+        except Exception as exc:  # pragma: no cover - asserted by parent thread
+            errors.append(exc)
+
+    threads = [threading.Thread(target=run, args=(name,)) for name in sessions]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == []
+    assert sorted(starts) == ["infomentor", "tempus"]
+    for name, session in sessions.items():
+        methods = [method for method, _, _ in session.calls]
+        urls = [url for _, url, _ in session.calls]
+        assert methods == ["post", "get", "get"]
+        assert urls[0] == (
+            f"https://login001.stockholm.se/NECSadc/freja/{name}"
+            "?action=init&userInput=000000000000"
+        )
+        assert urls[1:] == [
+            f"https://login001.stockholm.se/NECSadc/freja/{name}?relay={name}&action=checkstatus",
+            f"https://login001.stockholm.se/NECSadc/freja/{name}?relay={name}&action=checkstatus",
+        ]
 
 
 @pytest.mark.parametrize("bad_personnummer", ["8703274954", "19870327-4954", "abc", "", None])
@@ -159,7 +217,7 @@ def test_init_redirect_is_rejected_without_secrets():
         freja_login(session, FREJA_URL, PERSONNUMMER, poll_interval=0)
 
     message = str(excinfo.value)
-    assert "198703274954" not in message
+    assert PERSONNUMMER not in message
     assert "TARGET" not in message
     session.get.assert_not_called()
 
@@ -172,13 +230,13 @@ def test_poll_redirect_is_rejected_without_secrets():
         freja_login(session, FREJA_URL, PERSONNUMMER, poll_interval=0)
 
     message = str(excinfo.value)
-    assert "198703274954" not in message
+    assert PERSONNUMMER not in message
     assert "TARGET" not in message
 
 
 def test_http_failure_is_sanitized():
     session = MagicMock()
-    resp = _response("body with 198703274954", status_code=500)
+    resp = _response(f"body with {PERSONNUMMER}", status_code=500)
     resp.raise_for_status.side_effect = requests.HTTPError("raw secret", response=resp)
     session.post.return_value = resp
 
@@ -187,7 +245,7 @@ def test_http_failure_is_sanitized():
 
     message = str(excinfo.value)
     assert "HTTP status 500" in message
-    assert "198703274954" not in message
+    assert PERSONNUMMER not in message
     assert "raw secret" not in message
     assert "TARGET" not in message
     assert excinfo.value.status_code == 500
@@ -196,7 +254,7 @@ def test_http_failure_is_sanitized():
 def test_transport_exception_is_sanitized():
     session = MagicMock()
     session.post.side_effect = requests.Timeout(
-        "timed out for https://login003.stockholm.se/auth?action=init&userInput=198703274954"
+        f"timed out for https://login003.stockholm.se/auth?action=init&userInput={PERSONNUMMER}"
     )
 
     with pytest.raises(FrejaHttpError) as excinfo:
@@ -204,7 +262,7 @@ def test_transport_exception_is_sanitized():
 
     message = str(excinfo.value)
     assert "Freja init request failed." == message
-    assert "198703274954" not in message
+    assert PERSONNUMMER not in message
     assert "userInput" not in message
 
 
