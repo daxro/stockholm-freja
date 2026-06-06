@@ -6,6 +6,21 @@ It only performs the Freja initiation and polling protocol after a caller has
 already navigated to a Stockholms stad Freja page. It does not implement
 InfoMentor, Tempus, SAML, session persistence, or any CLI.
 
+## Install
+
+For a consumer project managed by uv:
+
+```bash
+uv add "stockholm-freja @ git+https://github.com/daxro/stockholm-freja.git"
+```
+
+Update a consumer project's locked dependency:
+
+```bash
+uv lock --upgrade-package stockholm-freja
+uv sync
+```
+
 ## Usage
 
 ```python
