@@ -289,7 +289,9 @@ def test_plain_text_status_response():
     session.post.return_value = _response("")
     session.get.return_value = _response("APPROVED")
 
-    freja_login(session, FREJA_URL, PERSONNUMMER, poll_interval=0)
+    freja_login(session, FREJA_URL, PERSONNUMMER, poll_interval=0, timeout=1.0)
+
+    assert session.get.call_count == 1
 
 
 def test_unknown_status_keeps_polling():
