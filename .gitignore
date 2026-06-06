@@ -1,6 +1,27 @@
-__pycache__/
-*.egg-info/
-.pytest_cache/
+# Local OS/editor files
+.DS_Store
+
+# Local environment and sensitive files
+.env
+.env.*
 .venv/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
 build/
 dist/
+
+# Tool caches and reports
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.coverage
+htmlcov/
+
+# Agent/local scratch space
+_temp_inbox/
+.playwright-mcp/
