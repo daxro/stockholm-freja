@@ -48,7 +48,7 @@ def freja_login(
     timeout: float = 180.0,
     on_started: Callable[[], None] | None = None,
 ) -> None:
-    pn = _validate_personnummer(personnummer)
+    pn = validate_personnummer(personnummer)
     parsed = _validate_freja_url(freja_url)
     base_url = _base_url(parsed)
     poll_referer = _url_without_fragment(parsed)
@@ -59,7 +59,7 @@ def freja_login(
     _poll_until_done(session, parsed, poll_referer, poll_interval, timeout)
 
 
-def _validate_personnummer(personnummer: str) -> str:
+def validate_personnummer(personnummer: str) -> str:
     if not isinstance(personnummer, str) or not re.fullmatch(r"[0-9]{12}", personnummer):
         raise FrejaInputError("Personnummer must contain exactly 12 digits.")
     return personnummer

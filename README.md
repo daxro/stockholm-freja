@@ -35,6 +35,9 @@ freja_login(
 )
 ```
 
+`validate_personnummer("YYYYMMDDNNNN")` is also available for callers that
+need to validate local input before starting the surrounding login flow.
+
 The caller owns the surrounding authentication flow, user prompts, logging,
 redaction, and session verification.
 

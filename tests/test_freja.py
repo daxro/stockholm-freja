@@ -13,6 +13,7 @@ from stockholm_freja import (
     FrejaRejectedError,
     FrejaTimeoutError,
     freja_login,
+    validate_personnummer,
 )
 
 FREJA_URL = (
@@ -35,6 +36,10 @@ def _session(statuses):
     session.post.return_value = _response("")
     session.get.side_effect = [_response(json.dumps({"status": status})) for status in statuses]
     return session
+
+
+def test_validate_personnummer_is_public():
+    assert validate_personnummer(PERSONNUMMER) == PERSONNUMMER
 
 
 def test_approved_after_polling():

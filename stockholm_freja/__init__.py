@@ -6,6 +6,7 @@ from .freja import (
     FrejaRejectedError,
     FrejaTimeoutError,
     freja_login,
+    validate_personnummer,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "FrejaRejectedError",
     "FrejaTimeoutError",
     "freja_login",
+    "validate_personnummer",
 ]
